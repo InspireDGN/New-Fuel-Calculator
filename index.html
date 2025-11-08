@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fuel Cost Calculator</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f7fa;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .container {
+      background: #ffffff;
+      padding: 30px;
+      border-radius: 16px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+      width: 350px;
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #333;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 5px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+    .conversion {
+      font-size: 12px;
+      color: #555;
+      margin-bottom: 15px;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #4a72ff;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #3358e6;
+    }
+    .result {
+      margin-top: 20px;
+      font-size: 18px;
+      text-align: center;
+      color: #333;
+      font-weight: bold;
+    }
+    .warning {
+      color: red;
+      font-size: 12px;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+  </style>
+  <!-- Replace 'YOUR_API_KEY_HERE' with your actual Google Maps API key -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCDugaKjGbPyscuUObOMBucQdkdgVuCXmU&libraries=places"></script>
+</head>
+<body>
+  <div class="container">
+    <h2>Fuel Cost Calculator</h2>
+    <div class="warning" id="apiWarning">Make sure to replace 'YOUR_API_KEY_HERE' with a valid Google Maps API key!</div>
+
+    <label for="consumption">Fuel Consumption (litres per 100 km)</label>
+    <input type="number" id="consumption" step="0.1" oninput="updateMpg()" />
+    <div class="conversion" id="mpgConversion"></div>
+
+    <label for="start">Start Location</label>
+    <input type="text" id="start" />
+
+    <label for="destination">Destination</label>
+    <input type="text" id="destination" />
+
+    <label for="distance">Distance (km)</label>
+    <input type="number" id="distance" />
+    <div class="conversion" id="milesConversion"></div>
+
+    <label for="price">Fuel Price (€ per litre)</label>
+    <input type="number" id="price" step="0.01" />
+
+    <button onclick="calculateCost()">Calculate</button>
+
+    <div class="result" id="result"></div>
+  </div>
+
+  <script>
+    function showApiWarning(message) {
+      const warningDiv = document.getElementById('apiWarning');
+      if (message) {
+        warningDiv.innerText = message;
+        warningDiv.style.display = 'block';
+      } else {
+        warningDiv.style.display = 'none';
+      }
+    }
+
+    function calculateCost() {
+      const consumptionPer100km = parseFloat(document.getElementById('consumption').value);
+      const distance = parseFloat(document.getElementById('distance').value);
+      const price = parseFloat(document.getElementById('price').value);
+
+      if (isNaN(consumptionPer100km) || isNaN(distance) || isNaN(price)) {
+        document.getElementById('result').innerText = 'Please fill in all fields.';
+        return;
+      }
+
+      const litresUsed = (consumptionPer100km / 100) * distance;
+      const totalCost = litresUsed * price;
+      document.getElementById('result').innerText = `Total Cost: €${totalCost.toFixed(2)}`;
+    }
+
+    function updateMpg() {
+      const consumption = parseFloat(document.getElementById('consumption').value);
+      if (!isNaN(consumption) && consumption > 0) {
+        const mpgImperial = 282.48 / consumption;
+        document.getElementById('mpgConversion').innerText = `≈ ${mpgImperial.toFixed(2)} miles per imperial gallon (UK/Ireland)`;
+      } else {
+        document.getElementById('mpgConversion').innerText = '';
+      }
+    }
+
+    function updateDistance() {
+      const start = document.getElementById('start').value;
+      const destination = document.getElementById('destination').value;
+      if (!start || !destination) return;
+
+      if (typeof google === 'object' && google.maps) {
+        showApiWarning(null); // clear previous warning
+        const service = new google.maps.DistanceMatrixService();
+        service.getDistanceMatrix(
+          {
+            origins: [start],
+            destinations: [destination],
+            travelMode: 'DRIVING',
+            unitSystem: google.maps.UnitSystem.METRIC
+          },
+          (response, status) => {
+            if (status === 'OK') {
+              const distanceMeters = response.rows[0].elements[0].distance.value;
+              const distanceKm = distanceMeters / 1000;
+              document.getElementById('distance').value = distanceKm.toFixed(2);
+              document.getElementById('milesConversion').innerText = `≈ ${(distanceKm / 1.60934).toFixed(2)} miles`;
+            } else if (status === 'REQUEST_DENIED') {
+              showApiWarning('API request denied: please check that your key has both Maps JavaScript API and Distance Matrix API enabled and allowed for this domain.');
+            } else {
+              console.error('Distance calculation failed:', status);
+            }
+          }
+        );
+      } else {
+        showApiWarning('Google Maps JavaScript API not loaded or invalid key.');
+        console.error('Google Maps JavaScript API not loaded or invalid key.');
+      }
+    }
+
+    document.getElementById('start').addEventListener('change', updateDistance);
+    document.getElementById('destination').addEventListener('change', updateDistance);
+  </script>
+</body>
+</html>
